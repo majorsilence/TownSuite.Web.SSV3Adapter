@@ -1,4 +1,6 @@
-$cwd = $PSScriptRoot
+#!/usr/bin/env pwsh
+$ErrorActionPreference = "Stop"
+$CURRENTPATH=$pwd.Path
 
 
 function RunVerionUpdater($loc, $path){
@@ -10,4 +12,4 @@ function RunVerionUpdater($loc, $path){
 	}	
 }
 
-RunVerionUpdater 3 "$cwd/Directory.Build.props"
+RunVerionUpdater 3 "$CURRENTPATH/Directory.Build.props"

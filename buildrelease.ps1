@@ -1,4 +1,4 @@
-#!/usr/bin/env powershell
+#!/usr/bin/env pwsh
 $ErrorActionPreference = "Stop"
 $CURRENTPATH=$pwd.Path
 
