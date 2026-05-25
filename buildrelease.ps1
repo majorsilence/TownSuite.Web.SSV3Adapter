@@ -40,45 +40,13 @@ function nuget_restore()
 function build()
 {
 	Write-Host "build TownSuite.Web.SSV3Adapter.sln" -ForegroundColor Green
-	& dotnet build -c Release TownSuite.Web.SSV3Adapter.sln
+	& dotnet build -c Release TownSuite.Web.SSV3Adapter.sln -p:GeneratePackageOnBuild=false
 	if ($LastExitCode -ne 0) { throw "Building solution, TownSuite.Web.SSV3Adapter.sln, failed" }
 }
 
 
-function package_nugetpkg(){
-	Write-Host "package_nugetpkg" -ForegroundColor Green
 
-	Get-ChildItem -Recurse "$CURRENTPATH\*.nupkg" | Where-Object { $_.FullName -notmatch '\\packages\\' } | Copy-Item -Destination  "$CURRENTPATH/build"
+clean_build
+nuget_restore
+build
 
-	cd "$CURRENTPATH"
-	$pwd.Path
-}
-
-
-if ( ($args.Count -ne 1) -or ($args[0] -eq 'build') )
-{
-	try{
-		clean_build
-		nuget_restore
-		build
-		package_nugetpkg
-			try{
-				clean_bin_obj
-			}
-			catch{
-				Write-Host "Failed to clean up bin/obj folders after bulid."
-			}
-	}
-	catch{
-			try{
-				clean_bin_obj
-			}
-			catch{
-				Write-Host "Failed to clean up bin/obj folders after bulid."
-			}
-		exit 99999
-	}
-}
-
-
-exit 0
