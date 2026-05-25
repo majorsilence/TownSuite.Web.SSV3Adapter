@@ -33,11 +33,11 @@ public static class ServiceStackV3AdapterRouteExtensions
                 var Adapter = new ServiceStackAdapter(options,
                     serviceProvider,
                     prom);
-                var results = await Adapter.Post(path, value, method);
+                var results = await Adapter.Post(path, value, method, context.RequestAborted);
 
                 context.Response.StatusCode = results.statusCode;
                 context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync(results.json ?? "");
+                await context.Response.WriteAsync(results.json ?? "", context.RequestAborted);
             });
         });
 

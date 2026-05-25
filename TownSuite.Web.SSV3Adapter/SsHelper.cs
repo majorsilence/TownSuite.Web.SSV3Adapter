@@ -191,7 +191,7 @@ internal class SsHelper
         foreach (var mi in methods)
         {
             var parameters = mi.GetParameters();
-            if (parameters.Length != 1) continue;
+            if (parameters.Length <= 0 || parameters.Length > 2) continue;
 
             var parameterString = parameters.FirstOrDefault().ParameterType.ToString();
             var individualParameter = parameterString?.Split('.').LastOrDefault();
@@ -270,10 +270,12 @@ internal class SsHelper
     {
         foreach (var mi in serviceType.GetMethods(BindingFlags.Public | BindingFlags.Instance).OrderBy(p => p.Name))
         {
-            if (mi.IsGenericMethod || mi.GetParameters().Length != 1)
+            var parameters = mi.GetParameters();
+
+            if (mi.IsGenericMethod || parameters.Length <= 0 || parameters.Length > 2)
                 continue;
 
-            var paramType = mi.GetParameters()[0].ParameterType;
+            var paramType = parameters[0].ParameterType;
             if (paramType.IsValueType || paramType == typeof(string))
                 continue;
 

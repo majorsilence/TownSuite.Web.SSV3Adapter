@@ -29,7 +29,8 @@ internal class ServiceStackAdapter
     public async Task<(int statusCode, string? json)> Post(
         string path,
         string value,
-        string method)
+        string method,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -59,7 +60,7 @@ internal class ServiceStackAdapter
             var request = JsonConvert.DeserializeObject(value ?? "", serviceInfo.Value.DtoType,
                 _options.SerializerSettings);
 
-            var results = await CreateAndInvokeService(serviceInfo.Value, request);
+            var results = await CreateAndInvokeService(serviceInfo.Value, request, cancellationToken);
             _prom?.EndRequest(results.statusCode.ToString(),
                 method,
                 name, serviceInfo.Value.Method.Name);
@@ -78,7 +79,7 @@ internal class ServiceStackAdapter
     }
 
     private async Task<(int statusCode, string? json)> CreateAndInvokeService((Type Service, MethodInfo Method,
-        Type DtoType) serviceInfo, object? request)
+        Type DtoType) serviceInfo, object? request, CancellationToken cancellationToken)
     {
         var secureAttribute = await _ssHelper.GetAttributeAsync<IExecutableAttribute>(serviceInfo.Service);
         if (secureAttribute != null)
@@ -104,8 +105,25 @@ internal class ServiceStackAdapter
         if (_options.CustomCallBack != null)
             await _options.CustomCallBack((CustomCall.ServiceInstantiated, instance, request));
 
-
-        object[] arguments = { request };
+        var parameterList = serviceInfo.Method.GetParameters();
+        var requestAdded = false;
+        var arguments = new List<object?>();
+        foreach (var parameter in parameterList)
+        {
+            if (parameter.ParameterType == typeof(CancellationToken))
+            {
+                arguments.Add(cancellationToken);
+            }
+            else
+            {
+                if (requestAdded)
+                {
+                    throw new ArgumentException("Too many parameters in controller.");
+                }
+                arguments.Add(request);
+                requestAdded = true;
+            }
+        }
 
         string output;
         Task t = null;
@@ -113,14 +131,14 @@ internal class ServiceStackAdapter
         {
             if (SsHelper.IsAsyncMethod(serviceInfo.Method))
             {
-                t = serviceInfo.Method.Invoke(instance, arguments) as Task;
+                t = serviceInfo.Method.Invoke(instance, arguments.ToArray()) as Task;
                 await t.ConfigureAwait(false);
                 var response = t.GetType().GetProperty("Result").GetValue(t);
                 output = JsonConvert.SerializeObject(response);
                 return (200, output);
             }
 
-            var val = await Task.FromResult(serviceInfo.Method.Invoke(instance, arguments));
+            var val = await Task.FromResult(serviceInfo.Method.Invoke(instance, arguments.ToArray()));
             t = Task.FromResult(val);
             output = JsonConvert.SerializeObject(val);
             return (200, output);

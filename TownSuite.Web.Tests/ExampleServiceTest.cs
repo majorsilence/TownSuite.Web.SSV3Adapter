@@ -1,4 +1,6 @@
-﻿using NUnit.Framework;
+﻿using Newtonsoft.Json;
+using NUnit.Framework;
+using TownSuite.Web.Example.ServiceStackExample;
 using TownSuite.Web.SSV3Adapter;
 
 namespace TownSuite.Web.Tests;
@@ -37,6 +39,51 @@ public class ExampleServiceTest
         var results = await adapter.Post(path, value, "any");
 
         Assert.That(results.json, Is.EqualTo("{\"FirstName\":\"Hello\",\"LastName\":\"World\"}"));
+        Assert.That(results.statusCode == 200);
+    }
+
+    [Test]
+    public async Task HappyPathTest_cancellation_tokens()
+    {
+        var options = Settings.GetSettings();
+        var serviceProvider = Settings.GetServiceProvider();
+        var cancelSource = new CancellationTokenSource();
+
+        var path = "https://localhost/ExampleAsyncClass";
+
+        var value = JsonConvert.SerializeObject(new ExampleAsyncClass()
+        {
+            Message = "Hello World"
+        });
+
+        var adapter = new ServiceStackAdapter(options, serviceProvider);
+        var results = await adapter.Post(path, value, "any", cancelSource.Token);
+
+        Assert.That(results.json, Is.EqualTo("{\"DidCancelWithResponse\":false}"));
+        Assert.That(results.statusCode == 200);
+    }
+
+    [Test]
+    public async Task Should_allow_handling_cancellation_tokens_in_controller()
+    {
+        var options = Settings.GetSettings();
+        var serviceProvider = Settings.GetServiceProvider();
+        var cancelSource = new CancellationTokenSource();
+
+        var path = "https://localhost/ExampleAsyncClass";
+
+        var value = JsonConvert.SerializeObject(new ExampleAsyncClass()
+        {
+            Message = "Hello World",
+            DelayMilliseconds = 100
+        });
+
+        var adapter = new ServiceStackAdapter(options, serviceProvider);
+        var task = adapter.Post(path, value, "any", cancelSource.Token);
+        cancelSource.Cancel();
+        var results = await task;
+
+        Assert.That(results.json, Is.EqualTo("{\"DidCancelWithResponse\":true}"));
         Assert.That(results.statusCode == 200);
     }
 
