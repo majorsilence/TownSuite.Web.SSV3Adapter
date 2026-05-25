@@ -32,6 +32,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
+                        chmod +x buildrelease.ps1
                         ./buildrelease.ps1
                         '''
                     }
@@ -50,8 +51,9 @@ pipeline {
                 stage('Nuget Package') {
                     steps {
                         dir('nugetspec') {
-                            pwsh '''
-                            .\\build_nuget.ps1
+                            sh '''
+                            chmod +x build_nuget.ps1
+                            ./build_nuget.ps1
                             '''
                         }
                     }
