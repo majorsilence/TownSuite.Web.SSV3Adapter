@@ -34,7 +34,7 @@ function clean_build()
 
 function nuget_restore()
 {
-	nuget restore "TownSuite.Web.SSV3Adapter.sln" -NonInteractive
+	dotnet restore "TownSuite.Web.SSV3Adapter.sln"
 }
 
 function build()
