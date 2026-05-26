@@ -9,6 +9,7 @@
         <PackageLicenseExpression>BSD-3-Clause</PackageLicenseExpression>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <RootNamespace>TownSuite.Web.SSV3Adapter.Interfaces</RootNamespace>
+        <IsPackable>true</IsPackable>
     </PropertyGroup>
 
 </Project>

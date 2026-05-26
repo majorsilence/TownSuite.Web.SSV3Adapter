@@ -34,7 +34,14 @@ function clean_build()
 
 function nuget_restore()
 {
-	dotnet restore "TownSuite.Web.SSV3Adapter.sln"
+	if ($env:NUGET_CONFIG_FILE) {
+		Write-Output "Using custom NuGet.Config file at $env:NUGET_CONFIG_FILE"
+		dotnet restore "TownSuite.Web.SSV3Adapter.sln" --configfile "$env:NUGET_CONFIG_FILE"
+	}
+	else {
+		Write-Output "Using default NuGet.Config file"
+		dotnet restore "TownSuite.Web.SSV3Adapter.sln"
+	}
 }
 
 function build()
@@ -43,7 +50,6 @@ function build()
 	& dotnet build -c Release TownSuite.Web.SSV3Adapter.sln -p:GeneratePackageOnBuild=false
 	if ($LastExitCode -ne 0) { throw "Building solution, TownSuite.Web.SSV3Adapter.sln, failed" }
 }
-
 
 
 clean_build

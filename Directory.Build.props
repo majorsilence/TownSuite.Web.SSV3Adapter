@@ -10,7 +10,14 @@
       <Copyright>Copyright © TownSuite Municipal Software Inc. 2026</Copyright>
       <Description>Helper route middleware to fake service stack version 3.
           This is to help port .net framework service stack 3 code to
-          net6.0 and newer asp.net core web api.
+          net8.0 and newer asp.net core web api.
       </Description>
+      <IsPackable>false</IsPackable>
+  </PropertyGroup>
+   <PropertyGroup Condition=" '$(NUGET_CONFIG_FILE)' != '' ">
+    <RestoreConfigFile>$(NUGET_CONFIG_FILE)</RestoreConfigFile>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true' Or '$(CI)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

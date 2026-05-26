@@ -8,6 +8,7 @@
         <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <IsPackable>true</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>

@@ -8,6 +8,10 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timestamps()
         timeout(time: 2, unit: 'HOURS')
+        skipDefaultCheckout true
+    }
+    environment {
+        AUTOCONFIGURE_NUGET = 'true'
     }
     stages {
         stage('Start Automation Script') {
@@ -50,12 +54,10 @@ pipeline {
                 }
                 stage('Nuget Package') {
                     steps {
-                        dir('nugetspec') {
-                            sh '''
-                            chmod +x build_nuget.ps1
-                            ./build_nuget.ps1
-                            '''
-                        }
+                        sh '''
+                        chmod +x build_nuget.ps1
+                        ./build_nuget.ps1
+                        '''
                     }
                 }
                 stage('Archive') {
