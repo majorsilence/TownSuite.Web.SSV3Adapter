@@ -64,7 +64,7 @@ pipeline {
                     steps {
                         echo 'archiving artifacts'
                         script {
-                            townsuite.archiveWithRetryAndLock('build/*.nupkg', 3)
+                            townsuite.archiveWithRetryAndLock('build/*.nupkg,build/parameterproperties.txt', 3)
                         }
                     }
                 }

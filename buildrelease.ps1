@@ -51,8 +51,25 @@ function build()
 	if ($LastExitCode -ne 0) { throw "Building solution, TownSuite.Web.SSV3Adapter.sln, failed" }
 }
 
+function package_parameterproperties() {
+	Write-Output "package_parameterproperties"
+
+	#GITHASH="$(git rev-parse --short HEAD)"
+	$GITHASH = git rev-parse --short HEAD
+	$VERSION = ""
+	GetVersions ([ref] $VERSION)  ([ref]"$CURRENTPATH/Directory.Build.props")
+
+	delete_files "$CURRENTPATH/build/parameterproperties.txt"
+	Add-Content "$CURRENTPATH/build/parameterproperties.txt" "VERSION=$VERSION"
+	Add-Content "$CURRENTPATH/build/parameterproperties.txt" "GITHASH=$GITHASH"
+	Add-Content "$CURRENTPATH/build/parameterproperties.txt" "GITHASH_FULL=$(git rev-parse HEAD)"
+
+	Set-Location "$CURRENTPATH"
+	$pwd.Path
+}
+
 
 clean_build
 nuget_restore
 build
-
+package_parameterproperties
