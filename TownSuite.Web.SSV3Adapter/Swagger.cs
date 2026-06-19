@@ -43,13 +43,17 @@ internal class Swagger
 
     public async Task<(int statusCode, string json)> Generate(string host)
     {
-        var cacheKey = $"{SsHelper.GetOptionsSignature(_options)}|{_options.SwaggerPath}|{_title}|{_version}|{_description}";
+        // Cache is only consulted in non-DEBUG builds; only populate it there too so DEBUG/test
+        // runs don't accumulate entries that are never read.
 #if !DEBUG
+        var cacheKey = $"{SsHelper.GetOptionsSignature(_options)}|{_options.SwaggerPath}|{_title}|{_version}|{_description}";
         if (JsonCache.TryGetValue(cacheKey, out var cached) && !string.IsNullOrWhiteSpace(cached))
             return (200, cached);
 #endif
         var json = await PreGenerateJson(host);
+#if !DEBUG
         JsonCache[cacheKey] = json;
+#endif
 
         return (200, json ?? "");
     }
