@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using TownSuite.Web.SSV3Adapter;
 
 namespace TownSuite.Web.Tests;
@@ -15,7 +15,7 @@ public class SwaggerTest
         var swag = new Swagger(options, serviceProvider,
             "description", "title", "v1");
         var results = await swag.Generate("localhost");
-        
+
         Assert.That(results.json,
             Is.EqualTo(
                 @"{
@@ -44,6 +44,55 @@ public class SwaggerTest
               ""application/json"": {
                 ""schema"": {
                   ""$ref"": ""#/components/schemas/TownSuite.Web.Example.ServiceStackExample.Example2Response""
+                }
+              }
+            }
+          },
+          ""299"": {
+            ""description"": ""Partial Success""
+          },
+          ""400"": {
+            ""description"": ""Bad Request""
+          },
+          ""401"": {
+            ""description"": ""Unauthorized""
+          },
+          ""403"": {
+            ""description"": ""Forbidden""
+          },
+          ""429"": {
+            ""description"": ""Too Many Requests""
+          },
+          ""500"": {
+            ""description"": ""Internal Server Error""
+          },
+          ""502"": {
+            ""description"": ""Bad Gateway""
+          },
+          ""504"": {
+            ""description"": ""Gateway Timeout""
+          }
+        }
+      }
+    },
+    ""/service/json/syncreply/{name}/ExampleAsyncClass"": {
+      ""post"": {
+        ""requestBody"": {
+          ""content"": {
+            ""application/json"": {
+              ""schema"": {
+                ""$ref"": ""#/components/schemas/TownSuite.Web.Example.ServiceStackExample.ExampleAsyncClass""
+              }
+            }
+          }
+        },
+        ""responses"": {
+          ""200"": {
+            ""description"": ""Success"",
+            ""content"": {
+              ""application/json"": {
+                ""schema"": {
+                  ""$ref"": ""#/components/schemas/TownSuite.Web.Example.ServiceStackExample.ExampleAsyncClassResponse""
                 }
               }
             }
@@ -474,6 +523,26 @@ public class SwaggerTest
           },
           ""LastName"": {
             ""type"": ""string""
+          }
+        }
+      },
+      ""TownSuite.Web.Example.ServiceStackExample.ExampleAsyncClass"": {
+        ""type"": ""object"",
+        ""properties"": {
+          ""DelayMilliseconds"": {
+            ""type"": ""integer""
+          },
+          ""Message"": {
+            ""type"": ""string""
+          }
+        },
+        ""description"": """"
+      },
+      ""TownSuite.Web.Example.ServiceStackExample.ExampleAsyncClassResponse"": {
+        ""type"": ""object"",
+        ""properties"": {
+          ""DidCancelWithResponse"": {
+            ""type"": ""boolean""
           }
         }
       },
