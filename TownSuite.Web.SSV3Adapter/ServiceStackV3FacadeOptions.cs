@@ -42,4 +42,10 @@ public class ServiceStackV3AdapterOptions
 
     public Func<ISSV3Prometheus>? Prometheus { get; set; } = null;
     public Func<Exception, ValueTask<(int statusCode, string? json)?>> OtherExceptionCallback { get; set; }
+
+    /// <summary>
+    ///     Maximum size (in bytes) of a request body accepted on the adapter route. Requests larger
+    ///     than this are rejected with 413 before the body is buffered into memory. Defaults to 30 MB.
+    /// </summary>
+    public long MaxRequestBodyBytes { get; set; } = 30 * 1024 * 1024;
 }

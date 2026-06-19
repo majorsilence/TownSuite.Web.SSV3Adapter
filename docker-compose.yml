@@ -1,6 +1,8 @@
 version: '3.4'
 
 services:
+  # Local-dev SA password is supplied via the SQL_SA_PASSWORD environment variable
+  # (see .env.example). No credentials are hardcoded in source control.
   townsuite.web.example:
     image: ${DOCKER_REGISTRY-}townsuiteweb
     build:
@@ -8,21 +10,25 @@ services:
       dockerfile: TownSuite.Web.Example/Dockerfile
     ports:
         - "32080:80"
+    environment:
+        ConnectionStrings__TestDb: "Server=sql_service;Database=test_data;User Id=SA;Password=${SQL_SA_PASSWORD};trustServerCertificate=true"
   sql_service:
     image: "mcr.microsoft.com/mssql/server:2019-latest"
-    ports:  
+    ports:
         - "31033:1433"
     environment:
-        SA_PASSWORD: "ThePassword321&"
+        SA_PASSWORD: "${SQL_SA_PASSWORD}"
         ACCEPT_EULA: "Y"
   sql_tools:
     image: "mcr.microsoft.com/mssql-tools"
     depends_on:
         - sql_service
+    environment:
+        SQL_SA_PASSWORD: "${SQL_SA_PASSWORD}"
     command: >
         sh -c "sleep 25s &&
-        /opt/mssql-tools/bin/sqlcmd -U SA -P \"ThePassword321&\" -S sql_service -d master -Q \"CREATE DATABASE test_data;\" &&
-        /opt/mssql-tools/bin/sqlcmd -U SA -P \"ThePassword321&\" -S sql_service -d test_data -Q \"CREATE TABLE test_table (test_column int, test_column2 varchar(255));\" &&
-        /opt/mssql-tools/bin/sqlcmd -U SA -P \"ThePassword321&\" -S sql_service -d test_data -Q \"INSERT INTO test_table values(1, 'hello');\"
+        /opt/mssql-tools/bin/sqlcmd -U SA -P \"$$SQL_SA_PASSWORD\" -S sql_service -d master -Q \"CREATE DATABASE test_data;\" &&
+        /opt/mssql-tools/bin/sqlcmd -U SA -P \"$$SQL_SA_PASSWORD\" -S sql_service -d test_data -Q \"CREATE TABLE test_table (test_column int, test_column2 varchar(255));\" &&
+        /opt/mssql-tools/bin/sqlcmd -U SA -P \"$$SQL_SA_PASSWORD\" -S sql_service -d test_data -Q \"INSERT INTO test_table values(1, 'hello');\"
         "
 

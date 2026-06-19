@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -13,7 +14,9 @@ namespace TownSuite.Web.SSV3Adapter;
 
 internal class Swagger
 {
-    private static string? jsonCached;
+    // Keyed by a per-configuration signature so two swagger endpoints in the same process
+    // (different routes/assemblies/metadata) never serve each other's generated document.
+    private static readonly ConcurrentDictionary<string, string> JsonCache = new();
     private readonly string _description;
     private readonly ServiceStackV3AdapterOptions _options;
     private readonly SsHelper _ssHelper;
@@ -40,18 +43,21 @@ internal class Swagger
 
     public async Task<(int statusCode, string json)> Generate(string host)
     {
+        var cacheKey = $"{SsHelper.GetOptionsSignature(_options)}|{_options.SwaggerPath}|{_title}|{_version}|{_description}";
 #if !DEBUG
-        if (!string.IsNullOrWhiteSpace(jsonCached)) return (200, jsonCached ?? "");
+        if (JsonCache.TryGetValue(cacheKey, out var cached) && !string.IsNullOrWhiteSpace(cached))
+            return (200, cached);
 #endif
-        await PreGenerateJson(host);
+        var json = await PreGenerateJson(host);
+        JsonCache[cacheKey] = json;
 
-        return (200, jsonCached ?? "");
+        return (200, json ?? "");
     }
 
     /// <summary>
     ///     Used to pre
     /// </summary>
-    private async Task PreGenerateJson(string host)
+    private async Task<string> PreGenerateJson(string host)
     {
         var serviceInfo = _ssHelper.GetAllServices();
     //    var sortedServiceInfo =
@@ -236,7 +242,7 @@ internal class Swagger
 
         var sb = new StringBuilder();
         swaggerDoc.SerializeAsV3(new OpenApiJsonWriter(new StringWriter(sb)));
-        jsonCached = sb.ToString();
+        return sb.ToString();
     }
 
     private static string GetSchemaType(Type type)

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <DockerComposeProjectPath>../docker-compose.dcproj</DockerComposeProjectPath>
@@ -10,13 +10,18 @@
 
     <ItemGroup>
         <PackageReference Include="Dapper" Version="2.1.35" />
-        <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.1" />
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.3" />
         <PackageReference Include="SimpleInjector.Integration.ServiceCollection" Version="5.5.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
         <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
         <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
         <PackageReference Include="SimpleInjector.Integration.AspNetCore.Mvc" Version="5.5.0" />
+        <!-- Pin transitive dependencies to non-vulnerable versions (GHSA-m5vv-6r4h-3vj9 etc.).
+             These are pulled in transitively (e.g. via Microsoft.Data.SqlClient). -->
+        <PackageReference Include="Azure.Identity" Version="1.13.2" />
+        <PackageReference Include="Microsoft.Identity.Client" Version="4.67.2" />
+        <PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
     </ItemGroup>
     
     <ItemGroup>

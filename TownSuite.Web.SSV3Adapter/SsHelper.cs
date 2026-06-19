@@ -8,11 +8,16 @@ namespace TownSuite.Web.SSV3Adapter;
 
 internal class SsHelper
 {
+    // These caches are static (shared across all adapter instances/configurations in the
+    // process). To avoid one adapter's resolution leaking onto another adapter's route, every
+    // cache key is prefixed with a signature of the owning options (route + service base types
+    // + searched assemblies). See GetOptionsSignature.
     private static readonly ConcurrentDictionary<string, (Type Service, MethodInfo Method, Type DtoType)> ServiceMap =
         new();
 
 
-    private static readonly ConcurrentDictionary<Type, (Type Service, MethodInfo Method, Type DtoType)>
+    private static readonly ConcurrentDictionary<string,
+            ConcurrentDictionary<Type, (Type Service, MethodInfo Method, Type DtoType)>>
         SwaggerServiceMap
             = new();
 
@@ -68,8 +73,10 @@ internal class SsHelper
     public (Type Service, MethodInfo Method, Type DtoType)?
         GetService(string requestName)
     {
-        // TODO: ADD CACHE
-        if (ServiceMap.ContainsKey(requestName)) return ServiceMap[requestName];
+        // Cache key is scoped to this adapter's configuration so a service resolved under one
+        // adapter is never served on another adapter's route.
+        var cacheKey = $"{GetOptionsSignature(_options)}|{requestName}";
+        if (ServiceMap.TryGetValue(cacheKey, out var cached)) return cached;
 
         foreach (var asm in _options.SearchAssemblies)
         {
@@ -79,12 +86,9 @@ internal class SsHelper
                 var methodInfo = GetMethod(requestName, service);
                 if (methodInfo.method != null)
                 {
-                    // key, value, func<TKey, TValue, TValue>
-                    ServiceMap.AddOrUpdate(requestName,
-                        (service, methodInfo.method, methodInfo.dtoType),
-                        (s, m) => { return (service, methodInfo.method, methodInfo.dtoType); });
-
-                    return (service, methodInfo.method, methodInfo.dtoType);
+                    var entry = (service, methodInfo.method, methodInfo.dtoType);
+                    ServiceMap[cacheKey] = entry;
+                    return entry;
                 }
             }
 
@@ -94,10 +98,31 @@ internal class SsHelper
         return null;
     }
 
+    /// <summary>
+    ///     Builds a stable signature of the supplied options so static caches can be partitioned
+    ///     per adapter configuration. Includes the route, the allowed service base types, and the
+    ///     searched assemblies - the inputs that determine which services an adapter may resolve.
+    /// </summary>
+    internal static string GetOptionsSignature(ServiceStackV3AdapterOptions options)
+    {
+        var assemblies = string.Join(",",
+            (options.SearchAssemblies ?? Array.Empty<Assembly>())
+            .Select(a => a.FullName).OrderBy(x => x, StringComparer.Ordinal));
+        var serviceTypes = string.Join(",",
+            (options.ServiceTypes ?? Array.Empty<Type>())
+            .Select(t => t.FullName).OrderBy(x => x, StringComparer.Ordinal));
+        return $"{options.RoutePath}|{assemblies}|{serviceTypes}";
+    }
+
     public ConcurrentDictionary<Type, (Type Service, MethodInfo Method, Type DtoType)>
         GetAllServices()
     {
-        if (SwaggerServiceMap.Any()) return SwaggerServiceMap;
+        var signature = GetOptionsSignature(_options);
+        if (SwaggerServiceMap.TryGetValue(signature, out var existing) && existing.Any())
+            return existing;
+
+        var map = SwaggerServiceMap.GetOrAdd(signature,
+            _ => new ConcurrentDictionary<Type, (Type Service, MethodInfo Method, Type DtoType)>());
 
         var types = PermissiveLoadAssemblies();
 
@@ -107,13 +132,13 @@ internal class SsHelper
             var methodInfo = GetMethod("", service);
             if (methodInfo.method != null)
                 // key, value, func<TKey, TValue, TValue>
-                SwaggerServiceMap.AddOrUpdate(methodInfo.method.DeclaringType,
+                map.AddOrUpdate(methodInfo.method.DeclaringType,
                     (service, methodInfo.method, methodInfo.dtoType),
                     (s, m) => { return (service, methodInfo.method, methodInfo.dtoType); });
         }
 
         // continue on and try the next dll
-        return SwaggerServiceMap;
+        return map;
     }
 
     private List<Type> PermissiveLoadAssemblies()
@@ -198,8 +223,14 @@ internal class SsHelper
             if (individualParameter == requestName ||
                 string.IsNullOrWhiteSpace(requestName))
             {
-                method = mi;
-                paramType = parameters.FirstOrDefault().ParameterType;
+                // Prefer a recognized action-verb handler (Any/AnyAsync/Get/Post). This makes
+                // selection deterministic and prevents an unintended same-signature helper method
+                // from shadowing the real endpoint when several methods share the parameter type.
+                if (method == null || (!IsActionVerb(method.Name) && IsActionVerb(mi.Name)))
+                {
+                    method = mi;
+                    paramType = parameters.FirstOrDefault().ParameterType;
+                }
             }
         }
 
@@ -270,6 +301,12 @@ internal class SsHelper
     {
         foreach (var mi in serviceType.GetMethods(BindingFlags.Public | BindingFlags.Instance).OrderBy(p => p.Name))
         {
+            // Never treat methods inherited from System.Object (Equals, etc.) as dispatchable
+            // endpoints. object.Equals(object) has a reference-type parameter and would otherwise
+            // be remotely invocable via /.../Object.
+            if (mi.DeclaringType == typeof(object))
+                continue;
+
             var parameters = mi.GetParameters();
 
             if (mi.IsGenericMethod || parameters.Length <= 0 || parameters.Length > 2)
@@ -279,9 +316,7 @@ internal class SsHelper
             if (paramType.IsValueType || paramType == typeof(string))
                 continue;
 
-            var actionName = mi.Name.ToUpper();
-            if (actionName != "ANY" && actionName != "ANYASYNC" &&
-                actionName != "POST" && actionName != "GET")
+            if (!IsActionVerb(mi.Name))
             {
                 if (string.Equals(paramType.Name, requestName, StringComparison.InvariantCultureIgnoreCase))
                     yield return mi;
@@ -291,5 +326,11 @@ internal class SsHelper
 
             yield return mi;
         }
+    }
+
+    private static bool IsActionVerb(string methodName)
+    {
+        var name = methodName.ToUpperInvariant();
+        return name == "ANY" || name == "ANYASYNC" || name == "POST" || name == "GET";
     }
 }
