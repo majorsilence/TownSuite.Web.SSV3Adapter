@@ -17,11 +17,16 @@ public class ExampleDataProfilingService : BaseServiceExample
     {
         var cnStr = _configuration.GetConnectionString("TestDb");
 
-        // using var cn = new System.Data.SqlClient.SqlConnection(cnStr);
-        using var cn = new SqlConnection(cnStr);
+        // The connection string is supplied via environment / user-secrets (no secret is committed).
+        // Skip the DB call when it is not configured so the example still runs without a database.
+        if (!string.IsNullOrWhiteSpace(cnStr))
+        {
+            using var cn = new SqlConnection(cnStr);
 
-        await cn.OpenAsync();
-        var data = await cn.QueryAsync("SELECT test_column, test_column2 FROM test_table");
+            await cn.OpenAsync();
+            // Result intentionally not captured; this only demonstrates issuing a DB call.
+            await cn.QueryAsync("SELECT test_column, test_column2 FROM test_table");
+        }
 
         return new ExampleDataProfilingResponse
         {

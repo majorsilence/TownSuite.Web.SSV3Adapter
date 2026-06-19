@@ -21,16 +21,20 @@ public sealed class SqlClientObserver : IObserver<DiagnosticListener>
 
     public SqlClientObserver(string prefix = "")
     {
+        // NOTE: the raw SQL CommandText is deliberately NOT used as a label. Doing so
+        // produces unbounded label cardinality (one permanent time series per distinct
+        // statement -> memory/scrape DoS) and exports SQL text (schema and any inline
+        // literal values) to the /metrics endpoint. Only low-cardinality labels are used.
         _sqlTotal = Metrics
             .CreateGauge($"{prefix}sql_commands_executed_total",
                 "Provides the count of sql commands sent to a database.",
-                new GaugeConfiguration { LabelNames = new[] { "commandtype", "commandtext", "server", "database" } });
+                new GaugeConfiguration { LabelNames = new[] { "commandtype", "server", "database" } });
 
         _sqlDuration = Metrics
             .CreateHistogram($"{prefix}sql_commands_duration_seconds",
                 "The duration of individual sql commands sent to a database.",
                 new HistogramConfiguration
-                    { LabelNames = new[] { "commandtype", "commandtext", "server", "database" } });
+                    { LabelNames = new[] { "commandtype", "server", "database" } });
     }
 
     void IObserver<DiagnosticListener>.OnNext(DiagnosticListener diagnosticListener)
@@ -90,11 +94,9 @@ public sealed class SqlClientObserver : IObserver<DiagnosticListener>
         var timeTakenSecs = _stopwatch.Value.ElapsedMilliseconds / 1000d;
 
         _sqlDuration.WithLabels(command.CommandType.ToString(),
-            command.CommandText,
             command.Connection?.DataSource ?? "",
             command.Connection?.Database ?? "").Observe(timeTakenSecs);
         _sqlTotal.WithLabels(command.CommandType.ToString(),
-            command.CommandText,
             command.Connection?.DataSource ?? "",
             command.Connection?.Database ?? "").Inc();
     }

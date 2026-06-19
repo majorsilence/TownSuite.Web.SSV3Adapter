@@ -1,6 +1,11 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using TownSuite.Web.SSV3Adapter.Interfaces;
@@ -92,10 +97,27 @@ internal class ServiceStackAdapter
         var authorizationAttribute = await _ssHelper.GetAttributeAsync<IAuthorizationFilter>(serviceInfo.Service);
         if (authorizationAttribute != null)
         {
-            var context = _serviceProvider.GetService<AuthorizationFilterContext>();
+            var httpContext = _serviceProvider.GetService<IHttpContextAccessor>()?.HttpContext
+                ?? throw new InvalidOperationException(
+                    "An IHttpContextAccessor with an active HttpContext must be available to evaluate " +
+                    "IAuthorizationFilter attributes. Register it with services.AddHttpContextAccessor().");
 
-            // TODO: what to do here?
-            authorizationAttribute.OnAuthorization(context);
+            var actionContext = new ActionContext(httpContext, httpContext.GetRouteData(), new ActionDescriptor());
+            var authContext = new AuthorizationFilterContext(actionContext,
+                new List<IFilterMetadata> { authorizationAttribute });
+
+            authorizationAttribute.OnAuthorization(authContext);
+
+            // An authorization filter denies a request by assigning a short-circuit Result
+            // (e.g. UnauthorizedResult / ForbidResult). Honor it instead of silently
+            // continuing to construct and invoke the service.
+            if (authContext.Result != null)
+            {
+                var statusCode = (authContext.Result as IStatusCodeActionResult)?.StatusCode
+                                 ?? StatusCodes.Status403Forbidden;
+                _prom?.ExceptionTriggered();
+                return (statusCode, null);
+            }
         }
 
         var instance = await _ssHelper.ConstructServiceObjectAsync(serviceInfo.Service);
@@ -134,13 +156,13 @@ internal class ServiceStackAdapter
                 t = serviceInfo.Method.Invoke(instance, arguments.ToArray()) as Task;
                 await t.ConfigureAwait(false);
                 var response = t.GetType().GetProperty("Result").GetValue(t);
-                output = JsonConvert.SerializeObject(response);
+                output = JsonConvert.SerializeObject(response, _options.SerializerSettings);
                 return (200, output);
             }
 
             var val = await Task.FromResult(serviceInfo.Method.Invoke(instance, arguments.ToArray()));
             t = Task.FromResult(val);
-            output = JsonConvert.SerializeObject(val);
+            output = JsonConvert.SerializeObject(val, _options.SerializerSettings);
             return (200, output);
         }
         catch (Exception ex)
@@ -154,8 +176,8 @@ internal class ServiceStackAdapter
             else if (t != null)
             {
                 await t.ConfigureAwait(false);
-                output = JsonConvert.SerializeObject(t.GetType().GetProperty("Result").GetValue(t)
-                );
+                output = JsonConvert.SerializeObject(t.GetType().GetProperty("Result").GetValue(t),
+                    _options.SerializerSettings);
             }
             else
             {

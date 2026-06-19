@@ -147,20 +147,26 @@ app.UseServiceStackV3Adapter(new ServiceStackV3AdapterOptions(
     }, serviceProvider: simpleInjectorContainer
 );
 
-app.UseServiceStackV3AdapterSwagger(new ServiceStackV3AdapterOptions(
-    serviceTypes: new Type[]
-    {
-        typeof(BaseServiceExample),
-        typeof(InterfaceServiceExample)
-    })
+// The generated swagger document enumerates the full internal service/DTO surface and is served
+// unauthenticated, so only expose it outside of production. Protect it with an authorization
+// policy or network restriction if it must be available in production.
+if (app.Environment.IsDevelopment())
 {
-    SwaggerPath = "/swag/swagger.json",
-    RoutePath = "/example/service/json/syncreply",
-    SearchAssemblies = new Assembly[]
+    app.UseServiceStackV3AdapterSwagger(new ServiceStackV3AdapterOptions(
+        serviceTypes: new Type[]
+        {
+            typeof(BaseServiceExample),
+            typeof(InterfaceServiceExample)
+        })
     {
-        Assembly.Load("TownSuite.Web.Example")
-    }
-});
+        SwaggerPath = "/swag/swagger.json",
+        RoutePath = "/example/service/json/syncreply",
+        SearchAssemblies = new Assembly[]
+        {
+            Assembly.Load("TownSuite.Web.Example")
+        }
+    });
+}
 
 
 app.MapControllers();
