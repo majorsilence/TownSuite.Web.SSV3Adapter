@@ -56,8 +56,9 @@ function package_parameterproperties() {
 
 	#GITHASH="$(git rev-parse --short HEAD)"
 	$GITHASH = git rev-parse --short HEAD
-	$VERSION = ""
-	GetVersions ([ref] $VERSION)  ([ref]"$CURRENTPATH/Directory.Build.props")
+	[xml]$props = Get-Content "$CURRENTPATH/Directory.Build.props"
+	$VERSION = ($props.Project.PropertyGroup.Version | Where-Object { $_ }) | Select-Object -First 1
+	if ([string]::IsNullOrWhiteSpace($VERSION)) { throw "Could not read Version from Directory.Build.props" }
 
 	delete_files "$CURRENTPATH/build/parameterproperties.txt"
 	Add-Content "$CURRENTPATH/build/parameterproperties.txt" "VERSION=$VERSION"
