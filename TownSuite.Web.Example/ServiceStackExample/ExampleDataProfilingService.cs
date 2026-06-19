@@ -24,7 +24,8 @@ public class ExampleDataProfilingService : BaseServiceExample
             using var cn = new SqlConnection(cnStr);
 
             await cn.OpenAsync();
-            var data = await cn.QueryAsync("SELECT test_column, test_column2 FROM test_table");
+            // Result intentionally not captured; this only demonstrates issuing a DB call.
+            await cn.QueryAsync("SELECT test_column, test_column2 FROM test_table");
         }
 
         return new ExampleDataProfilingResponse

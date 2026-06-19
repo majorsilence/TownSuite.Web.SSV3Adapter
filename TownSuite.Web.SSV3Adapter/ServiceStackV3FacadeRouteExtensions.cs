@@ -75,18 +75,22 @@ public static class ServiceStackV3AdapterRouteExtensions
     /// </summary>
     private static async Task<(bool tooLarge, string value)> ReadBodyAsync(HttpContext context, long maxBytes)
     {
+        var token = context.RequestAborted;
+
         // Fast path: trust a declared Content-Length to reject oversized requests early.
         if (context.Request.ContentLength is long declared && declared > maxBytes)
         {
             return (true, string.Empty);
         }
 
-        using var reader = new StreamReader(context.Request.Body);
-        var buffer = new char[8192];
-        var sb = new StringBuilder();
+        // Count raw bytes (not decoded chars): a char count undercounts multibyte UTF-8 payloads
+        // and would let bodies exceed the configured byte limit.
+        var body = context.Request.Body;
+        var buffer = new byte[8192];
+        using var ms = new MemoryStream();
         long total = 0;
         int read;
-        while ((read = await reader.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        while ((read = await body.ReadAsync(buffer.AsMemory(0, buffer.Length), token)) > 0)
         {
             total += read;
             if (total > maxBytes)
@@ -94,10 +98,10 @@ public static class ServiceStackV3AdapterRouteExtensions
                 return (true, string.Empty);
             }
 
-            sb.Append(buffer, 0, read);
+            ms.Write(buffer, 0, read);
         }
 
-        return (false, sb.ToString());
+        return (false, Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length));
     }
 
 
